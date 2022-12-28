@@ -4,6 +4,7 @@ from machine import Pin, UART, I2C
 
 #Import utime library to implement delay
 import utime, time
+import network
 
 #________________________________________________________
 from ssd1306 import SSD1306_I2C
@@ -11,11 +12,14 @@ from ssd1306 import SSD1306_I2C
 
 import onewire, ds18x20
 
+from secrets import secrets
+
 onboard_led = Pin("LED", Pin.OUT)
 onboard_led.on()
 
 heater_led = Pin(15, Pin.OUT)
 heater_led.off()
+
 
 ##########################################################
 #Oled I2C connection
@@ -38,8 +42,6 @@ print('Found DS devices: ', roms)
 WIDTH  = 128                                            # oled display width
 HEIGHT = 64                                             # oled display height
 
-# sda=machine.Pin(20)
-# scl=machine.Pin(21)
 sda=machine.Pin(8)
 scl=machine.Pin(9)
 i2c = I2C(0, sda=sda, scl=scl, freq=200000)
@@ -61,8 +63,47 @@ print("I2C Configuration: "+str(i2c))                   # Display I2C config
 oled = SSD1306_I2C(WIDTH, HEIGHT, i2c)                  # Init oled display
 
 oled.fill(0)
-oled.text("No Data", 0, 0)
+oled.rotate(False)
+oled.text("Battery Heater", 0, 0)
 oled.show()
+
+
+#network declaration
+# Set country to avoid possible errors / https://randomnerdtutorials.com/micropython-mqtt-esp32-esp8266/
+rp2.country('CA')
+
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+
+#connect using ssid
+wlan.connect(secrets['ssid'],secrets['password'])
+while not wlan.isconnected():
+    #machine.idle() # save power while waiting
+    print('Waiting for connection...')
+    utime.sleep(1.0)
+ip = wlan.ifconfig()[0]
+print(f'IP Address: {ip}')
+
+oled.fill(0)
+oled.text("IP Address", 0, 0)
+oled.text(ip, 0, 16)
+#oled.rotate(True)
+oled.show()
+
+utime.sleep(1)
+
+oled.poweroff()
+
+oled.fill(0)
+oled.text("IP Address", 0, 0)
+oled.text(ip, 0, 16)
+#oled.rotate(False)
+oled.show()
+
+utime.sleep(2)
+
+oled.poweron()
+
 
 push_button = Pin(22, Pin.IN)  # 22 number pin is input
 
@@ -109,5 +150,3 @@ finally:
     oled.show()
     onboard_led.off()
     heater_led.off()
-
-
