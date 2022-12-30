@@ -66,7 +66,6 @@ oled = SSD1306_I2C(WIDTH, HEIGHT, i2c)                  # Init oled display
 oled.rotate(True)
 
 oled.fill(0)
-#oled.rotate(False)
 oled.text("Battery Heater", 0, 0)
 oled.show()
 
@@ -89,20 +88,9 @@ print(f'IP Address: {ip}')
 
 oled.fill(0)
 oled.text("IP: "+ip, 0, 0)
-#oled.text(ip, 0, 16)
 oled.show()
 
-# utime.sleep(1)
 # oled.poweroff()
-# oled.fill(0)
-# oled.text("IP: "+ip, 0, 0)
-# #oled.text("IP Address", 0, 0)
-# #oled.text(ip, 0, 16)
-# #oled.rotate(False)
-# oled.show()
-
-# utime.sleep(2)
-
 # oled.poweron()
 
 push_button = Pin(22, Pin.IN)  # 22 number pin is input
@@ -113,14 +101,14 @@ relaypin.value(0)
 
 # Main Logic
 pin = 0
-counter = 30
+counter = 30 # target temperature
 integral = 0
-lastupdate = utime.time()  
+lastupdate = utime.time()
 #refresh(ssd, True)  # Initialise and clear display.
 
 lasterror = 0
 # The Tweakable values that will help tune for our use case. TODO: Make accessible via menu on OLED
-checkin = 5
+checkin = 10
 # Stolen From Reddit: In terms of steering a ship:
 # Kp is steering harder the further off course you are,
 # Ki is steering into the wind to counteract a drift
@@ -130,14 +118,14 @@ Ki = .01   # Integral term - Compensate for heat loss by vessel
 Kd = 150.  # Derivative term - to prevent overshoot due to inertia - if it is zooming towards setpoint this
            # will cancel out the proportional term due to the large negative gradient
 output = 0
-offstate = False
+offstate = True
 boil = False  # The override flag that will just get to a boil as quick as possible. (Assumes water at sea level, which is ok for now)
 # Heating loop - Default behaviour
 powerup = True
 
 try:
     while True:
-        logic_state = push_button.value()
+#        logic_state = push_button.value()
 
         # counter=encoder(pin)
         # # If the counter is set to 100 and we assume we're heating water, 100 degrees is as hot as the water can get,
@@ -152,11 +140,10 @@ try:
         now = utime.time()
         dt = now - lastupdate
 
-
         if output < 100 and offstate == False and dt > checkin * round(output)/100 :
             relaypin.value(0)
             heater_led.off()
-            offstate= True
+            offstate = True
             utime.sleep(.1)
         if dt > checkin:
             error = counter - temp
@@ -193,10 +180,6 @@ try:
             lasterror = error
 
 
-        # for rom in roms:
-        #     #print(rom)
-        #     print(ds_sensor.read_temp(rom))
-
         # Clear the oled display in case it has junk on it.
         oled.fill(0)
         # Add some text
@@ -206,18 +189,12 @@ try:
         oled.text(str(round(temp,1)),36,24)
         oled.text("*C",76,24)
         oled.text("Heater",40,40)
-        # if logic_state == True:
-        #     heater_led.on()
-        #     oled.text("ON",56, 56)
-        #     relaypin.value(1)
-        # else:
-        #     relaypin.value(0)
-        #     oled.text("OFF",52, 56)
-        #     heater_led.off()
-
+        if offstate == False:
+            oled.text("ON",56, 56)
+        else:
+            oled.text("OFF",52, 56)
         # Finally update the oled display so the image & text is displayed
         oled.show()
-#        utime.sleep(2)
         
 finally:    
     # Clear the oled display in case it has junk on it.
