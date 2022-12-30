@@ -113,7 +113,7 @@ relaypin.value(0)
 
 # Main Logic
 pin = 0
-counter = 54.5
+counter = 30
 integral = 0
 lastupdate = utime.time()  
 #refresh(ssd, True)  # Initialise and clear display.
@@ -139,12 +139,59 @@ try:
     while True:
         logic_state = push_button.value()
 
+        # counter=encoder(pin)
+        # # If the counter is set to 100 and we assume we're heating water, 100 degrees is as hot as the water can get,
+        # # so the output should just be set to 100 until the target is reached. Much quicker for this use case.
+        # if counter==100:
+        #     boil = True
+        # else:
+        #     boil = False
         ds_sensor.convert_temp()
         temp = ds_sensor.read_temp(roms[0])
-        #time.sleep_ms(750)
 
         now = utime.time()
         dt = now - lastupdate
+
+
+        if output < 100 and offstate == False and dt > checkin * round(output)/100 :
+            relaypin.value(0)
+            heater_led.off()
+            offstate= True
+            utime.sleep(.1)
+        if dt > checkin:
+            error = counter - temp
+            integral = integral + dt * error
+            derivative = (error - lasterror) / dt
+            P = Kp * error
+            I = Ki * integral
+            D = Kd * derivative
+#             output = Kp * error + Ki * integral + Kd * derivative
+            output = P + I + D
+#             print(str(output)+"= Kp term: "+str(Kp*error)+" + Ki term:" + str(Ki*integral) + "+ Kd term: " + str(Kd*derivative))
+            print("Temp: " + str(temp))
+            print("SV: " + str(counter))
+            print("Error: " + str(error))
+            print("MV: ")
+            print("P ----> " + str(P))
+            print("I ----> " + str(I))
+            print("D ----> " + str(D))
+
+            output = max(min(100, output), 0) # Clamp output between 0 and 100
+            if boil and error > .5:
+                output=100
+            print(output)
+            if output > 0:
+                relaypin.value(1)
+                heater_led.on()
+                offstate = False
+            else:
+                relaypin.value(0)
+                heater_led.off()
+                offstate = True
+            utime.sleep(.1)
+            lastupdate = now
+            lasterror = error
+
 
         # for rom in roms:
         #     #print(rom)
@@ -155,23 +202,22 @@ try:
         # Add some text
         oled.text("IP: "+ip, 0, 0)
         oled.text("Temperature",20,16)
-        print("temp: "+str(temp))
+        #print("temp: "+str(temp))
         oled.text(str(round(temp,1)),36,24)
         oled.text("*C",76,24)
         oled.text("Heater",40,40)
-        if logic_state == True:
-            heater_led.on()
-            oled.text("ON",56, 56)
-            relaypin.value(1)
-        else:
-            relaypin.value(0)
-            oled.text("OFF",52, 56)
-            heater_led.off()
+        # if logic_state == True:
+        #     heater_led.on()
+        #     oled.text("ON",56, 56)
+        #     relaypin.value(1)
+        # else:
+        #     relaypin.value(0)
+        #     oled.text("OFF",52, 56)
+        #     heater_led.off()
 
-            
         # Finally update the oled display so the image & text is displayed
         oled.show()
-        utime.sleep(2)
+#        utime.sleep(2)
         
 finally:    
     # Clear the oled display in case it has junk on it.
@@ -180,3 +226,4 @@ finally:
     oled.show()
     heater_led.off()
     onboard_led.off()
+
