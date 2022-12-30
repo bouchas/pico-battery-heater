@@ -43,8 +43,8 @@ if roms=='':
 WIDTH  = 128                                            # oled display width
 HEIGHT = 64                                             # oled display height
 
-sda=machine.Pin(8)
-scl=machine.Pin(9)
+sda=Pin(8)
+scl=Pin(9)
 i2c = I2C(0, sda=sda, scl=scl, freq=200000)
 
 print('Scan i2c bus...')
@@ -101,7 +101,7 @@ relaypin.value(0)
 
 # Main Logic
 pin = 0
-counter = 30 # target temperature
+counter = 25.0 # target temperature
 integral = 0
 lastupdate = utime.time()
 #refresh(ssd, True)  # Initialise and clear display.
@@ -117,6 +117,10 @@ Kp = 20.   # Proportional term - Basic steering (This is the first parameter you
 Ki = .01   # Integral term - Compensate for heat loss by vessel
 Kd = 150.  # Derivative term - to prevent overshoot due to inertia - if it is zooming towards setpoint this
            # will cancel out the proportional term due to the large negative gradient
+P = 0.
+I = 0.
+D = 0.
+
 output = 0
 offstate = True
 boil = False  # The override flag that will just get to a boil as quick as possible. (Assumes water at sea level, which is ok for now)
@@ -152,21 +156,9 @@ try:
             P = Kp * error
             I = Ki * integral
             D = Kd * derivative
-#             output = Kp * error + Ki * integral + Kd * derivative
             output = P + I + D
-#             print(str(output)+"= Kp term: "+str(Kp*error)+" + Ki term:" + str(Ki*integral) + "+ Kd term: " + str(Kd*derivative))
-            print("Temp: " + str(temp))
-            print("SV: " + str(counter))
-            print("Error: " + str(error))
-            print("MV: ")
-            print("P ----> " + str(P))
-            print("I ----> " + str(I))
-            print("D ----> " + str(D))
-
             output = max(min(100, output), 0) # Clamp output between 0 and 100
-            if boil and error > .5:
-                output=100
-            print(output)
+            print("T: %5.2f, G: %5.2f, E: %5.2f, O: %6.2f, P: %7.4f, I: %7.4f, D: %7.4f" % (temp, counter, error, output, P, I, D))
             if output > 0:
                 relaypin.value(1)
                 heater_led.on()
@@ -179,20 +171,19 @@ try:
             lastupdate = now
             lasterror = error
 
-
         # Clear the oled display in case it has junk on it.
         oled.fill(0)
-        # Add some text
         oled.text("IP: "+ip, 0, 0)
-        oled.text("Temperature",20,16)
-        #print("temp: "+str(temp))
-        oled.text(str(round(temp,1)),36,24)
-        oled.text("*C",76,24)
-        oled.text("Heater",40,40)
+        oled.text("Target : "+str(round(counter,1))+" *C",0,9)
+        oled.text("Current: "+str(round(temp,1))+" *C",0,18)
+        oled.text("Heater : "+str(round(output))+"%",0,27)
         if offstate == False:
-            oled.text("ON",56, 56)
+            oled.text("ON",112, 27)
         else:
-            oled.text("OFF",52, 56)
+            oled.text("OFF",104, 27)
+        oled.text("P --> "+str(P),0,36)
+        oled.text("I --> "+str(I),0,45)
+        oled.text("D --> "+str(D),0,54)
         # Finally update the oled display so the image & text is displayed
         oled.show()
         
