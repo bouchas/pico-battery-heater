@@ -79,11 +79,18 @@ wlan.active(True)
 
 #connect using ssid
 wlan.connect(secrets['ssid'],secrets['password'])
-while not wlan.isconnected():
+loopcount = 0
+while not wlan.isconnected() and loopcount < 10:
+    loopcount += 1
+    print(wlan.status())
     #machine.idle() # save power while waiting
     print('Waiting for connection...')
     utime.sleep(1.0)
-ip = wlan.ifconfig()[0]
+
+if wlan.status() == 3:
+    ip = wlan.ifconfig()[0]
+else:
+    ip = ""
 print(f'IP Address: {ip}')
 
 oled.fill(0)
