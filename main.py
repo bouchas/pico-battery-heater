@@ -108,7 +108,7 @@ relaypin.value(0)
 
 # Main Logic
 pin = 0
-counter = 25.0 # target temperature
+counter = 8.0 # target temperature
 integral = 0
 lastupdate = utime.time()
 #refresh(ssd, True)  # Initialise and clear display.
