@@ -7,7 +7,9 @@ import utime, time
 import network
 import sys
 
-#from umqtt.simple import MQTTClient
+from do_connect import *
+
+from umqtt.simple import MQTTClient
 
 #________________________________________________________
 from ssd1306 import SSD1306_I2C
@@ -69,36 +71,41 @@ oled.fill(0)
 oled.text("Battery Heater", 0, 0)
 oled.show()
 
+##########################################################
+#MQTT  Topic Setup
+def connectMQTT():
+    #https://forum.micropython.org/viewtopic.php?t=11076&p=60836
+    client = MQTTClient(secrets['client_id'],secrets['mqtt_server'], keepalive=30) # Just added Keepalive=30 to fix the error code 2
+    client.connect()
+    return client
 
-#network declaration
-# Set country to avoid possible errors / https://randomnerdtutorials.com/micropython-mqtt-esp32-esp8266/
-rp2.country('CA')
+def publishMQTT(topic, value):
+    # print(topic)
+    # print(value)
+    # pub_msg = "%5.2f" % value
+    print("Publish: ",topic,"  ",value)
+    # client.publish(topic, pub_msg)
+    client.publish(topic, value)
+    #print("publish Done")
 
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-
-#connect using ssid
-wlan.connect(secrets['ssid'],secrets['password'])
-loopcount = 0
-while not wlan.isconnected() and loopcount < 10:
-    loopcount += 1
-    print(wlan.status())
-    #machine.idle() # save power while waiting
-    print('Waiting for connection...')
-    utime.sleep(1.0)
-
-if wlan.status() == 3:
-    ip = wlan.ifconfig()[0]
-else:
-    ip = ""
-print(f'IP Address: {ip}')
+# WiFi connection
+ip = do_connect()
 
 oled.fill(0)
-oled.text("IP: "+ip, 0, 0)
+oled.text("IP Address", 0, 0)
+oled.text(ip, 0, 16)
+oled.rotate(True)
 oled.show()
+utime.sleep(2.0)
 
-# oled.poweroff()
-# oled.poweron()
+try:
+    client = connectMQTT()
+except OSError as e:
+    oled.fill(0)
+    oled.text('ERROR: connectMQTT', 0, 0)
+    oled.show()
+    utime.sleep(2.0)
+
 
 push_button = Pin(22, Pin.IN)  # 22 number pin is input
 
@@ -165,7 +172,10 @@ try:
             D = Kd * derivative
             output = P + I + D
             output = max(min(100, output), 0) # Clamp output between 0 and 100
+
             print("T: %5.2f, G: %5.2f, E: %5.2f, O: %6.2f, P: %7.4f, I: %7.4f, D: %7.4f" % (temp, counter, error, output, P, I, D))
+            publishMQTT('battery/temp','{"temp":'+str(temp)+'}')
+
             if output > 0:
                 relaypin.value(1)
                 heater_led.on()
@@ -201,4 +211,4 @@ finally:
     oled.show()
     heater_led.off()
     onboard_led.off()
-
+#    machine.reset()
